@@ -365,9 +365,10 @@ struct Scene
         for(auto const & light : lights)
         {
           Vec3 light_delta = (intersection->position - light.position);
+          Vec3 light_dir = light_delta.normalize();
 
           float distance_to_light = light_delta.length();
-          if(auto hit = intersect(light.position, light_delta.normalize()))
+          if(auto hit = intersect(light.position, light_dir))
           {
             if(hit->distance < (distance_to_light - 1e-3)) { // needs tiny delta due to imprecision
               // ray to light is obstructed
@@ -375,9 +376,13 @@ struct Scene
             }
           }
 
+          // How strong is the light after a certain distance
           float attenuation = light.power / distance_to_light;
+        
+          // How much is the light reflected by the surface
+          float brdf = std::max(0.0f, -light_dir.dot(intersection->normal));
 
-          lighting += light.color * attenuation;
+          lighting += light.color * attenuation * brdf;
         }
         surface_albedo *= lighting;
       }
@@ -474,12 +479,12 @@ int main()
   //   return c / (c + Color(1.0));
   // });
 
-  // float exposure = 1.00;
-  // target.apply([exposure](Color c) -> Color 
-  // {
-  //   // exposure tone mapping
-  //   return Color(1.0) - Color(exp(-c.r * exposure), exp(-c.g * exposure), exp(-c.b * exposure));
-  // });
+  float exposure = 1.00;
+  target.apply([exposure](Color c) -> Color 
+  {
+    // exposure tone mapping
+    return Color(1.0) - Color(exp(-c.r * exposure), exp(-c.g * exposure), exp(-c.b * exposure));
+  });
 
   // apply gamma correction
   float gamma = 2.2;
