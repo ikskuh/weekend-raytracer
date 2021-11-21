@@ -6,6 +6,7 @@
 #include <vector>
 #include <variant>
 #include <optional>
+#include <random>
 
 struct Vec3
 {
@@ -427,31 +428,40 @@ int main()
   scene.objects.push_back(Object { Plane { &other_plane, Vec3 {  0, 0, 10  }, Vec3 { 0, 0, -1  } } });
 
   // some spheres
-  scene.objects.push_back(Object { Sphere { &mirror_sphere, Vec3 { 0, -5, -5 }, 2.0 } });
-  scene.objects.push_back(Object { Sphere { &mirror_sphere, Vec3 { 4.33, -4, 2.5 }, 2.0 } });
-  scene.objects.push_back(Object { Sphere { &mirror_sphere, Vec3 { -4.33, -4.5, 2.5 }, 2.0 } });
+  scene.objects.push_back(Object { Sphere { &mirror_sphere, Vec3 { -5, -4.5, 0 }, 2.0 } });
+  scene.objects.push_back(Object { Sphere { &mirror_sphere, Vec3 { 2.5, -4.0, 4.33 }, 2.0 } });
+  scene.objects.push_back(Object { Sphere { &mirror_sphere, Vec3 { 2.5, -5.0, -4.33 }, 2.0 } });
   
   // some lights
-  scene.lights.push_back(PointLight { Vec3{0,0,0}, 10.0f, Color{1,1,1} });
+  scene.lights.push_back(PointLight { Vec3{5,5,0}, 10.0f, Color{1,0.5,0.5} });
+  scene.lights.push_back(PointLight { Vec3{-5,5,0}, 10.0f, Color{0.5,0.5,1} });
 
+  size_t super_sampling = 64;
+  std::default_random_engine rng;
+  std::uniform_real_distribution<float> rng_dist(-0.5, 0.5);
+  
   for(size_t y = 0; y < target.height; y++)
   {
     for(size_t x = 0; x < target.width; x++)
     {
-      float ss_x = 2.0 * float(x) / float(target.width - 1) - 1.0;
-      float ss_y = 1.0 - 2.0 * float(y) / float(target.height - 1);
-
-      Vec3 ray_origin = camera.position;
-      Vec3 ray_direction = camera.projectRay(ss_x, ss_y);
-
-      if(auto color = scene.trace(ray_origin, ray_direction))
+      Color final { 0.0 };
+      for(size_t i = 0; i < super_sampling; i++)
       {
-        target.set(x, y, *color);
+        float dx = rng_dist(rng);
+        float dy = rng_dist(rng);
+
+        float ss_x = 2.0 * float(x + dx) / float(target.width - 1) - 1.0;
+        float ss_y = 1.0 - 2.0 * float(y + dy) / float(target.height - 1);
+
+        Vec3 ray_origin = camera.position;
+        Vec3 ray_direction = camera.projectRay(ss_x, ss_y);
+
+        if(auto color = scene.trace(ray_origin, ray_direction))
+        {
+          final += *color;
+        }
       }
-      else 
-      {
-        target.set(x, y, Color(0));
-      }
+      target.set(x, y, final * (1.0 / float(super_sampling)));
     }
   }
 
